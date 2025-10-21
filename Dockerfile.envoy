@@ -1,0 +1,48 @@
+# Copyright 2025 The OPA Authors.  All rights reserved.
+# Use of this source code is governed by an Apache2
+# license that can be found in the LICENSE file.
+
+# Multi-stage build for OPA with Envoy plugin support for ARM64
+# This Dockerfile builds the OPA-Envoy plugin which includes OPA with the 
+# envoy_ext_authz_grpc plugin enabled
+
+ARG GOVERSION=1.24.4
+FROM golang:${GOVERSION} AS builder
+
+WORKDIR /build
+
+# Clone the opa-envoy-plugin repository which contains the Envoy integration
+RUN git clone https://github.com/open-policy-agent/opa-envoy-plugin.git .
+
+# Build for ARM64 architecture
+ARG TARGETOS=linux
+ARG TARGETARCH=arm64
+ENV CGO_ENABLED=0
+ENV GOOS=${TARGETOS}
+ENV GOARCH=${TARGETARCH}
+ENV WASM_ENABLED=0
+
+# Build the OPA-Envoy plugin binary
+RUN make build
+
+# Final stage - use minimal base image
+FROM chainguard/static:latest
+
+LABEL org.opencontainers.image.authors="OPA Authors"
+LABEL org.opencontainers.image.source="https://github.com/mager-m/opa"
+LABEL org.opencontainers.image.description="OPA with Envoy External Authorization plugin for ARM64"
+
+# Any non-zero number will do, and unfortunately a named user will not, as k8s
+# pod securityContext runAsNonRoot can't resolve the user ID
+ARG USER=1000:1000
+USER ${USER}
+
+# Copy the built OPA-Envoy binary
+ARG TARGETOS=linux
+ARG TARGETARCH=arm64
+COPY --from=builder /build/opa_envoy_${TARGETOS}_${TARGETARCH}_static /opa
+
+ENV PATH=${PATH}:/
+
+ENTRYPOINT ["/opa"]
+CMD ["run"]
