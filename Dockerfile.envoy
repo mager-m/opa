@@ -6,7 +6,7 @@
 # This Dockerfile builds the OPA-Envoy plugin which includes OPA with the 
 # envoy_ext_authz_grpc plugin enabled
 
-ARG GOVERSION=1.24.4
+ARG GOVERSION=1.24.6
 
 # Use the native platform for the builder to enable cross-compilation
 FROM --platform=$BUILDPLATFORM golang:${GOVERSION} AS builder
